@@ -1,0 +1,15 @@
+.vscode/**
+.github/**
+docs/**
+**/*.ts
+!dist/src/**/*.d.ts
+tsconfig.json
+.eslintrc.js
+.vscodeignore
+.gitignore
+SECURITY.md
+SUPPORT.md
+CODE_OF_CONDUCT.md
+**/package-lock.json
+*.vsix
+dist/api.js

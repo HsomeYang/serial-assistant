@@ -1,0 +1,95 @@
+{
+  "name": "serial-assistant",
+  "displayName": "串口助手",
+  "description": "面向中文环境的串口助手，支持 UTF-8 / GB18030 编码、HEX 收发与日志保存。",
+  "icon": "resources/icon.png",
+  "version": "0.1.0",
+  "publisher": "HsomeYang",
+  "license": "MIT",
+  "keywords": [
+    "vscode",
+    "serial",
+    "api",
+    "串口",
+    "串口助手",
+    "串口监视器",
+    "serial-assistant",
+    "monitor",
+    "serial monitor"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "bugs": {
+    "url": "https://github.com/HsomeYang/serial-assistant/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HsomeYang/serial-assistant"
+  },
+  "author": {
+    "name": "Microsoft Corporation"
+  },
+  "main": "dist/src/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "serialAssistantPanel",
+          "title": "串口助手",
+          "icon": "resources/serial.svg"
+        }
+      ]
+    },
+    "views": {
+      "serialAssistantPanel": [
+        {
+          "type": "webview",
+          "id": "serialAssistant.main",
+          "name": "串口监视器",
+          "icon": "resources/serial.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "serialAssistant.open",
+        "title": "打开串口助手面板"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "npm run lint && tsc -p ./",
+    "compile": "tsc -p ./",
+    "clean": "rimraf ./dist",
+    "lint": "eslint . --ext ts --max-warnings 0",
+    "package": "vsce package",
+    "release": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^16.11.7",
+    "@types/vscode": "^1.55.0",
+    "@typescript-eslint/parser": "^5.48.0",
+    "@vscode/vsce": "^2.32.0",
+    "eslint": "^8.25.0",
+    "eslint-plugin-header": "^3.1.1",
+    "rimraf": "^3.0.2",
+    "typescript": "^4.8.4"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "需要访问本地串口设备"
+    }
+  },
+  "dependencies": {
+    "serialport": "^13.0.0"
+  }
+}

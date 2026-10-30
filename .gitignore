@@ -15,4 +15,3 @@ out/
 .DS_Store
 Thumbs.db
 .eslintcache
-resources/icon *.png

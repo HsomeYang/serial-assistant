@@ -6,6 +6,19 @@
   "version": "0.1.0",
   "publisher": "HsomeYang",
   "license": "MIT",
+  "eslintConfig": {
+    "root": true,
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+      "ecmaVersion": 2019,
+      "sourceType": "module"
+    },
+    "ignorePatterns": ["**/*.js", "*.d.ts"],
+    "rules": {
+      "no-empty": "off",
+      "no-unused-expressions": ["warn", { "allowShortCircuit": true }]
+    }
+  },
   "galleryBanner": {
     "color": "#1B2B34",
     "theme": "dark"
@@ -48,7 +61,7 @@
         {
           "id": "serialAssistantPanel",
           "title": "串口助手",
-          "icon": "resources/serial.svg"
+          "icon": "resources/icon.svg"
         }
       ]
     },
@@ -58,7 +71,7 @@
           "type": "webview",
           "id": "serialAssistant.main",
           "name": "串口监视器",
-          "icon": "resources/serial.svg"
+          "icon": "resources/icon.svg"
         }
       ]
     },
@@ -75,7 +88,7 @@
     "compile": "tsc -p ./",
     "clean": "rimraf ./dist",
     "lint": "eslint . --ext ts --max-warnings 0",
-    "package": "vsce package",
+    "package": "vsce package --out dist",
     "publish": "vsce publish"
   },
   "devDependencies": {

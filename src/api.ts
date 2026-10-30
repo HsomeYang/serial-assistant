@@ -4,7 +4,7 @@
 import * as vscode from "vscode";
 // Reuse the implementation types so the contract cannot drift from the code
 // (StopBits used to be a string enum here while the implementation used 1 / 1.5 / 2).
-import type { DataBits, Parity, StopBits } from "./src/serialManager";
+import type { DataBits, Parity, StopBits } from "./serialManager";
 
 export enum LineEnding {
   None = "none",

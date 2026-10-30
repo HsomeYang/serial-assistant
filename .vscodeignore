@@ -4,12 +4,10 @@ docs/**
 **/*.ts
 !dist/src/**/*.d.ts
 tsconfig.json
-.eslintrc.js
 .vscodeignore
 .gitignore
 .gitattributes
 **/package-lock.json
 **/*.vsix
 **/*.map
-dist/api.js
-resources/icon *.png
+dist/src/api.js

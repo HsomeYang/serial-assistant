@@ -12,14 +12,14 @@
 |---|---|
 | 连接 | 串口直连 / TCP 客户端；波特率（15 个预设 + 自定义）、数据位、停止位、校验位、流控制全配 |
 | 中文 | UTF-8 / GB18030 / Latin1；**增量解码**，多字节字符被分包截断也不会出现半个汉字 |
-| 收发 | ASCII 与十六进制双向切换；行尾符（无 / LF / CR / CRLF）；转义 `\r` `\n` `\t` `\xNN`；循环发送 |
-| 显示 | 毫秒级时间戳并标注收发方向；自动滚动；关键字过滤；保存为 txt / log |
+| 收发 | ASCII 与十六进制双向切换；行尾符（无 / LF / CR / CRLF）；转义 `\r` `\n` `\t` `\xNN`；循环发送；发送回显可隐藏 |
+| 显示 | 毫秒级时间戳并标注收发方向；自动滚动；关键字过滤且命中片段标红；保存为 txt / log |
 | 稳定性 | DTR / RTS 手动电平；断线自动重连（约 1 分钟）；打开前 5 秒等待设备枚举 |
 
 ## 安装
 
 - **商店**：扩展视图搜索「串口助手」，或[打开商店页面](https://marketplace.visualstudio.com/items?itemName=HsomeYang.serial-assistant)
-- **VSIX**：`code --install-extension serial-assistant-0.1.0.vsix`；TRAE / CodeBuddy 等衍生 IDE 用「扩展视图 → `...` → 从 VSIX 安装」
+- **VSIX**：`code --install-extension dist/serial-assistant-0.1.0.vsix`；TRAE / CodeBuddy 等衍生 IDE 用「扩展视图 → `...` → 从 VSIX 安装」
 
 装完按 `Ctrl+Shift+P` → `Developer: Reload Window` 重载窗口。
 
@@ -38,6 +38,7 @@
 | 列表外的波特率 | 波特率选「自定义…」再填数值 |
 | 看原始字节 | 点「接收 [ASCII 文本]」切到「十六进制」 |
 | 中文乱码 | 编码切到 `GB18030`（GBK / GB2312 的超集）或 `UTF-8` |
+| 只盯某条报文 | 第二行过滤框输入关键字，命中的片段标红，`Esc` 清空；过滤只影响显示，缓存不外丢 |
 
 ## TCP 模式
 
@@ -64,7 +65,7 @@ VS Code 1.75 及以上，以及 TRAE、CodeBuddy、Cursor、VSCodium 等衍生 I
 
 - 暂无历史发送记录、快捷指令与文件发送（X / YMODEM）
 - HEX 按数据包显示，不保证与物理帧边界对齐
-- `0.1.x` 的 `activate()` 尚未导出 `getApi`，第三方集成契约见 `api.ts`
+- `0.1.x` 的 `activate()` 尚未导出 `getApi`，第三方集成契约见 `src/api.ts`
 
 ## 开发
 
@@ -72,7 +73,7 @@ VS Code 1.75 及以上，以及 TRAE、CodeBuddy、Cursor、VSCodium 等衍生 I
 npm install
 npm run build      # lint + 编译
 npm run compile    # 仅编译，供 F5 调试
-npm run package    # 生成 vsix
+npm run package    # 生成 dist/serial-assistant-<版本>.vsix
 npm run publish    # 发布到商店（需 VSCE_PAT）
 ```
 
@@ -85,7 +86,8 @@ src/
 ├─ webviewHtml.ts    面板界面（HTML / CSS / 脚本）
 ├─ linkBase.ts       串口与 TCP 共用：增量解码、事件分发
 ├─ serialManager.ts  串口收发
-└─ tcpManager.ts     TCP 客户端
+├─ tcpManager.ts     TCP 客户端
+└─ api.ts            对外 API 契约（尚未导出实现）
 ```
 
 发布：更新 `package.json` 的 `version` 与 `CHANGELOG.md` → `git tag v0.1.0 && git push --tags`，标签触发 `publish.yml`（打包、建 Release，配了 `VSCE_PAT` 时同时发布商店）。

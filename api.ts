@@ -2,20 +2,9 @@
 // Licensed under the MIT License.
 
 import * as vscode from "vscode";
-
-export enum StopBits {
-  One = "one",
-  Onepointfive = "onepointfive",
-  Two = "two",
-}
-
-export enum Parity {
-  None = "none",
-  Odd = "odd",
-  Even = "even",
-  Mark = "mark",
-  Space = "space",
-}
+// Reuse the implementation types so the contract cannot drift from the code
+// (StopBits used to be a string enum here while the implementation used 1 / 1.5 / 2).
+import type { DataBits, Parity, StopBits } from "./src/serialManager";
 
 export enum LineEnding {
   None = "none",
@@ -24,13 +13,11 @@ export enum LineEnding {
   CRLF = "\r\n",
 }
 
-export type DataBit = 5 | 6 | 7 | 8;
-
 export interface MonitorPortSettings {
   port: string;
   baudRate: number;
   lineEnding: LineEnding;
-  dataBits: DataBit;
+  dataBits: DataBits;
   stopBits: StopBits;
   parity: Parity;
 }
@@ -128,25 +115,34 @@ export enum Version {
   latest = v0,
 }
 
+type ExtensionApiShape = {
+  getApi?: (
+    version: Version,
+    context: vscode.ExtensionContext
+  ) => Promise<SerialMonitorApi | undefined>;
+};
+
 export async function getSerialMonitorApi(
   version: Version,
   extensionContext: vscode.ExtensionContext
 ): Promise<SerialMonitorApi | undefined> {
-  const serialMonitorExtension: vscode.Extension<any> | undefined =
-    vscode.extensions.getExtension("HsomeYang.serial-assistant");
-  let extensionApi: any | undefined;
+  const serialMonitorExtension = vscode.extensions.getExtension("HsomeYang.serial-assistant");
+  let extensionApi: ExtensionApiShape | undefined;
 
   if (serialMonitorExtension) {
     if (!serialMonitorExtension.isActive) {
       try {
-        extensionApi = await serialMonitorExtension.activate();
-      } catch {}
+        extensionApi = (await serialMonitorExtension.activate()) as ExtensionApiShape | undefined;
+      } catch {
+        extensionApi = undefined;
+      }
     } else {
-      extensionApi = serialMonitorExtension.exports;
+      extensionApi = serialMonitorExtension.exports as ExtensionApiShape | undefined;
     }
   }
 
-  if (!extensionApi) {
+  // 0.1.x does not export getApi from activate(), so this returns undefined today.
+  if (!extensionApi || typeof extensionApi.getApi !== "function") {
     return undefined;
   }
 

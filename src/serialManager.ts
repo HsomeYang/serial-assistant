@@ -1,8 +1,10 @@
 // Copyright (c) 2026 HsomeYang.
 // Licensed under the MIT License.
 
-import { TextDecoder } from "util";
 import { SerialPort } from "serialport";
+import { LinkBase } from "./linkBase";
+
+export type { CloseHandler, Counters, DataHandler } from "./linkBase";
 
 export interface PortInfo {
   path: string;
@@ -25,38 +27,22 @@ export interface OpenOptions {
   encoding: string;
 }
 
-export interface Counters {
-  rx: number;
-  tx: number;
-}
-
-export type DataHandler = (text: string, hex: string) => void;
-export type CloseHandler = (reason?: string) => void;
-
 /**
  * 串口收发管理。
  *
- * 解码采用增量方式（stream: true），保证被分包截断的多字节字符
- * （UTF-8 三字节 / GB18030 两字节）能正确还原，不会出现半个汉字。
+ * 解码、计数与事件分发由 LinkBase 统一处理，这里只负责连接的建立与释放。
  */
-export class SerialManager {
+export class SerialManager extends LinkBase {
   private port: SerialPort | undefined;
-  private decoder = new TextDecoder("utf-8");
-  private rxBytes = 0;
-  private txBytes = 0;
   // 防止 error 与 close 两个事件重复上报关闭状态
   private closing = false;
+  // 每次打开递增；close() 或新的 open() 会让进行中的旧 open 失效
+  private openSeq = 0;
 
-  private readonly dataHandlers: DataHandler[] = [];
-  private readonly closeHandlers: CloseHandler[] = [];
-
-  public onData(handler: DataHandler): void {
-    this.dataHandlers.push(handler);
-  }
-
-  public onClosed(handler: CloseHandler): void {
-    this.closeHandlers.push(handler);
-  }
+  // 保存固定引用，关闭时只摘自己的监听，避免连兜底的 error 监听一起摘掉
+  private readonly onChunk = (chunk: Buffer): void => this.handleChunk(chunk);
+  private readonly onPortError = (error: Error): void => this.handleClosed(error.message);
+  private readonly onPortClose = (): void => this.handleClosed();
 
   public get isOpen(): boolean {
     return this.port !== undefined && this.port.isOpen;
@@ -64,15 +50,6 @@ export class SerialManager {
 
   public get openedPath(): string | undefined {
     return this.port?.path;
-  }
-
-  public get counters(): Counters {
-    return { rx: this.rxBytes, tx: this.txBytes };
-  }
-
-  public resetCounters(): void {
-    this.rxBytes = 0;
-    this.txBytes = 0;
   }
 
   public async listPorts(): Promise<PortInfo[]> {
@@ -92,21 +69,25 @@ export class SerialManager {
     });
   }
 
-  public setEncoding(encoding: string): void {
-    try {
-      this.decoder = new TextDecoder(encoding);
-    } catch {
-      this.decoder = new TextDecoder("utf-8");
-    }
-  }
-
-  public open(options: OpenOptions): Promise<void> {
+  /**
+   * @param resetCounters 自动重连时传 false，保留累计收发计数
+   */
+  public open(options: OpenOptions, resetCounters = true): Promise<void> {
     if (this.isOpen) {
       return Promise.reject(new Error("串口已打开，请先关闭"));
     }
 
+    // 上一次异常断开可能留下未释放的实例，先彻底丢弃，避免句柄堆积
+    this.discard(this.port);
+    this.port = undefined;
+    this.closing = false;
+
+    if (resetCounters) {
+      this.resetCounters();
+    }
     this.setEncoding(options.encoding);
-    this.resetCounters();
+
+    const seq = ++this.openSeq;
 
     return new Promise<void>((resolve, reject) => {
       const port = new SerialPort({
@@ -122,42 +103,98 @@ export class SerialManager {
         autoOpen: false,
       });
 
+      let settled = false;
+      // 个别驱动在端口异常时可能一直不回调，超时后主动放弃，避免打开流程卡死
+      const guard = setTimeout(() => {
+        if (settled || seq !== this.openSeq) {
+          return;
+        }
+        settled = true;
+        this.openSeq += 1;
+        this.discard(port);
+        reject(new Error("打开超时：串口驱动无响应"));
+      }, 10000);
+
       port.open((error: Error | null) => {
+        clearTimeout(guard);
+        if (settled) {
+          // 已超时放弃，晚到的结果直接丢弃，避免留下没人管理的已打开端口
+          this.discard(port);
+          return;
+        }
+        settled = true;
+
         if (error) {
           // 打开失败时释放实例，避免句柄与监听器残留
-          port.removeAllListeners();
+          this.discard(port);
           reject(error);
           return;
         }
+
+        // 打开过程中又被 close() 或新的 open() 打断：释放掉这个实例
+        if (seq !== this.openSeq) {
+          this.discard(port);
+          reject(new Error("打开已被取消"));
+          return;
+        }
+
         this.port = port;
         this.closing = false;
-        port.on("data", (chunk: Buffer) => this.handleData(chunk));
-        port.on("error", (err: Error) => this.handleClosed(err.message));
-        port.on("close", () => this.handleClosed());
+        port.on("data", this.onChunk);
+        port.on("error", this.onPortError);
+        port.on("close", this.onPortClose);
         resolve();
       });
     });
   }
 
   public close(): Promise<void> {
+    // 让仍在进行中的 open 失效，否则它稍后成功会把端口重新打开
+    this.openSeq += 1;
+    const port = this.port;
+    this.port = undefined;
+    this.closing = true;
+
+    if (!port) {
+      return Promise.resolve();
+    }
+
+    // 只摘自己的监听并保留一个空 error 兜底：关闭过程中底层仍可能抛 ECONNRESET，
+    // 若此时没有任何 error 监听，EventEmitter 会直接抛出未捕获异常。
+    this.detach(port);
+
+    if (!port.isOpen) {
+      this.destroyQuietly(port);
+      return Promise.resolve();
+    }
+
     return new Promise<void>((resolve) => {
-      const port = this.port;
-      this.port = undefined;
-
-      if (!port) {
+      let settled = false;
+      const finish = (): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
         resolve();
-        return;
+      };
+
+      try {
+        port.close((error: Error | null) => {
+          if (error) {
+            this.destroyQuietly(port);
+          }
+          finish();
+        });
+      } catch {
+        this.destroyQuietly(port);
+        finish();
       }
 
-      // 先摘掉监听，避免 close 回调里再次触发状态更新造成回环
-      port.removeAllListeners();
-
-      if (!port.isOpen) {
-        resolve();
-        return;
-      }
-
-      port.close(() => resolve());
+      // 驱动无响应时兜底，避免 close 永久挂起把界面卡在「已连接」
+      setTimeout(() => {
+        this.destroyQuietly(port);
+        finish();
+      }, 1500);
     });
   }
 
@@ -173,7 +210,7 @@ export class SerialManager {
           reject(error);
           return;
         }
-        this.txBytes += data.length;
+        this.addTxBytes(data.length);
         resolve();
       });
     });
@@ -201,31 +238,47 @@ export class SerialManager {
     });
   }
 
-  public dispose(): void {
-    void this.close();
-  }
-
-  private handleData(chunk: Buffer): void {
-    this.rxBytes += chunk.length;
-
-    const text = this.decoder.decode(chunk, { stream: true });
-    const pairs = chunk.toString("hex").match(/../g);
-    const hex = pairs ? pairs.join(" ").toUpperCase() : "";
-
-    for (const handler of this.dataHandlers) {
-      handler(text, hex);
-    }
-  }
-
   private handleClosed(reason?: string): void {
+    const port = this.port;
     // error 之后通常还会跟一个 close，只处理第一次
-    if (this.closing || !this.port) {
+    if (this.closing || !port) {
       return;
     }
+
     this.closing = true;
     this.port = undefined;
-    for (const handler of this.closeHandlers) {
-      handler(reason);
+    // 掉线后必须真正释放句柄：只丢引用的话 Windows 上句柄仍被占用，
+    // 重连同一端口会报 Access denied
+    this.detach(port);
+    this.destroyQuietly(port);
+
+    this.emitClosed(reason);
+  }
+
+  /** 摘掉自己的监听，并挂一个空 error 监听兜底 */
+  private detach(port: SerialPort): void {
+    port.removeListener("data", this.onChunk);
+    port.removeListener("error", this.onPortError);
+    port.removeListener("close", this.onPortClose);
+    port.on("error", () => undefined);
+  }
+
+  /** 丢弃一个实例（可能尚未打开成功），同时释放句柄 */
+  private discard(port: SerialPort | undefined): void {
+    if (!port) {
+      return;
+    }
+    this.detach(port);
+    this.destroyQuietly(port);
+  }
+
+  private destroyQuietly(port: SerialPort): void {
+    try {
+      if (port.isOpen) {
+        port.destroy();
+      }
+    } catch {
+      // 句柄已失效，忽略
     }
   }
 }

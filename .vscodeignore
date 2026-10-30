@@ -8,9 +8,6 @@ tsconfig.json
 .vscodeignore
 .gitignore
 .gitattributes
-SECURITY.md
-SUPPORT.md
-CODE_OF_CONDUCT.md
 **/package-lock.json
 **/*.vsix
 **/*.map

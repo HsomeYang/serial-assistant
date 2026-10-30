@@ -22,7 +22,7 @@ export function buildWebviewHtml(): string {
   }
 
   /* 工具栏行：自动换行，行高与控件齐平 */
-  .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex: 0 0 auto; min-height: 24px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 4px 5px; align-items: center; flex: 0 0 auto; min-height: 24px; }
 
   /* 功能分组分隔线 */
   .sep {
@@ -96,7 +96,7 @@ export function buildWebviewHtml(): string {
     min-width: 84px;
     text-align: center;
   }
-  #tcpHost { width: 132px; }
+  #tcpHost { flex: 1 1 132px; width: auto; min-width: 120px; max-width: 300px; }
   #tcpPort { width: 64px; }
 
 
@@ -112,18 +112,26 @@ export function buildWebviewHtml(): string {
     flex: 0 0 auto;
   }
   .tag { color: var(--vscode-descriptionForeground); font-size: 11px; white-space: nowrap; }
+  .unit { opacity: .7; }
 
-  /* 固定宽度：端口名长短不再影响后续控件的位置 */
-  #port { width: 210px; }
+  /* 端口这一组吸收行内多余空间，右侧按钮左边不会留下大片空白 */
+  .group.grow { flex: 1 1 auto; min-width: 0; }
+  /* 过滤框吃掉本行剩余宽度，不再留出一段空白 */
+  /* 过滤框先用剩余空间，空间不足时优先压缩它，避免把后面的按钮顶到下一行 */
+  #filter { flex: 1 1 140px; min-width: 0; max-width: 240px; width: 100%; }
+  #port { flex: 1 1 200px; width: auto; min-width: 170px; max-width: 260px; }
   #baud { width: 96px; }
   /* 只有选择「自定义」时才显示输入框 */
   #baudCustom { display: none; width: 78px; }
   #baudCustom.show { display: inline-block; }
   #cycle { width: 66px; }
-  /* 单行高度的多行输入框：回车发送，Shift+回车真正插入换行 */
+  /* 单行起步，内容变多时由脚本增高；横向不再滚动，避免滚动条把 24px 高度吃掉 */
   #input {
     flex: 1 1 auto; min-width: 160px;
-    resize: none; overflow: auto; white-space: pre; padding-top: 0; padding-bottom: 0;
+    height: 24px; min-height: 24px; max-height: 96px;
+    line-height: 20px; padding-top: 1px; padding-bottom: 1px;
+    resize: none; overflow-x: hidden; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-all;
   }
   label { display: inline-flex; gap: 4px; align-items: center; height: 24px; cursor: pointer; user-select: none; white-space: nowrap; }
 
@@ -139,12 +147,6 @@ export function buildWebviewHtml(): string {
   #status.on { color: #fff; background: var(--vscode-testing-iconPassed, #388a34); }
   #status.err { color: var(--vscode-inputValidation-errorForeground, #fff); background: var(--vscode-inputValidation-errorBackground, #5a1d1d); }
 
-  /* 收发计数 */
-  #counters {
-    min-width: 108px; font-family: var(--vscode-editor-font-family); font-size: 12px;
-    color: var(--vscode-descriptionForeground); white-space: nowrap;
-  }
-
   /* 接收区 */
   #output {
     flex: 1 1 auto; min-height: 60px; overflow: auto; padding: 6px 8px;
@@ -158,12 +160,20 @@ export function buildWebviewHtml(): string {
   #output .line.tx { color: var(--vscode-terminal-ansiGreen, #4ec9b0); }
   #output .line.tx.failed { color: var(--vscode-errorForeground); }
   #output .line.err { color: var(--vscode-errorForeground); }
+  /* 过滤命中片段：红字 + 淡红底，随过滤词实时重绘 */
+  #output .line .hit {
+    color: var(--vscode-errorForeground, #f14c4c);
+    background: rgba(241, 76, 76, .18);
+    border-radius: 2px;
+  }
   /* 空状态引导 */
   #output:empty::before {
     content: '接收区为空。打开串口后，收到的数据会显示在这里。';
     color: var(--vscode-descriptionForeground); opacity: .55;
     font-family: var(--vscode-font-family); font-size: var(--vscode-font-size);
   }
+  /* 过滤后没有命中时给对应提示，而不是「接收区为空」 */
+  body.filtering #output:empty::before { content: '没有匹配的内容。'; }
 
   /* 自绘悬停提示：Webview 中原生 title 不弹出，改用浮层 */
   #tip {
@@ -184,11 +194,10 @@ export function buildWebviewHtml(): string {
     <button id="advanced" class="toggle plain" data-tip="展开或收起不常用参数：数据位、停止位、校验位、流控制、DTR/RTS、行尾符&#10;展开后整行出现在下方，不会挤动本行">更多设置</button>
     <span class="sep"></span>
     <button id="linkMode" class="toggle plain" data-tip="连接方式：串口直连 或 TCP 网络连接&#10;串口 —— USB / 板载串口设备&#10;TCP —— ESP32 的 WiFi 日志、串口服务器、远程设备">串口</button>
-    <span class="group serial-only">
-      <select id="port" data-tip="串口设备列表。选中后点「开始监视」打开；设备未出现时点「刷新」重新扫描。"></select>
-      <button id="refresh" data-tip="重新扫描系统中当前可用的串口设备">刷新</button>
+    <span class="group serial-only grow">
+      <select id="port" data-tip="串口设备列表，每 2 秒自动刷新。选中后点「开始监视」打开。"></select>
     </span>
-    <span class="group tcp-only">
+    <span class="group tcp-only grow">
       <input type="text" id="tcpHost" value="192.168.1.100" data-tip="远端 IP 或主机名，例如 192.168.1.100 或 device.local">
       <input type="text" id="tcpPort" value="8080" data-tip="远端端口号，范围 1~65535">
     </span>
@@ -215,7 +224,6 @@ export function buildWebviewHtml(): string {
       <input type="text" id="baudCustom" value="115200" placeholder="bps" data-tip="自定义波特率，填正整数，例如 31250、1000000">
     </span>
     <span class="action-group">
-      <button id="reconnect" class="toggle active" data-tip="断线重连：串口意外断开或设备抖动时，按原参数每 1.5 秒重试一次，最长约 1 分钟&#10;重连成功会提示「已重连」；点「停止监视」不会触发重连">断线重连</button>
       <button id="toggle" class="primary" data-tip="打开或关闭当前选中的串口">开始监视</button>
       <span id="status" data-tip="当前串口连接状态">未连接</span>
     </span>
@@ -252,6 +260,8 @@ export function buildWebviewHtml(): string {
       </select>
     </span>
     <span class="sep"></span>
+    <button id="reconnect" class="toggle active serial-only" data-tip="断线重连：串口意外断开或设备抖动时，按原参数每 1.5 秒重试一次，最长约 1 分钟&#10;重连成功会提示「已重连」；点「停止监视」不会触发重连">断线重连</button>
+    <span class="sep"></span>
     <button id="dtr" class="toggle active serial-only" data-tip="DTR（数据终端就绪）：多数开发板用它触发 MCU 复位&#10;点击切换电平，高亮表示拉高">DTR</button>
     <button id="rts" class="toggle active serial-only" data-tip="RTS（请求发送）：常接 BOOT 引脚，配合 DTR 使 ESP32 等进入下载模式&#10;启用硬件流控时该引脚由驱动接管">RTS</button>
     <span class="sep"></span>
@@ -281,15 +291,12 @@ export function buildWebviewHtml(): string {
     <button id="stamp" class="toggle active" data-tip="在每行数据前加上时刻，并在末尾标注方向&#10;接收：[2026-10-30 17:20:28.422收]&#10;发送：[2026-10-30 17:20:28.422发]&#10;点击开启或关闭，切换后历史内容会立即重绘">时间戳</button>
     <button id="autoScroll" class="toggle active" data-tip="新数据到达时自动滚动到底部&#10;关闭后视图停在当前位置，便于翻看历史">自动滚动</button>
     <button id="showTx" class="toggle active" data-tip="在接收区回显自己发送的内容，用 → 标记，与设备返回的数据区分开&#10;关闭后历史中的发送记录会一并隐藏，记录本身保留">显示发送</button>
-    <span class="sep"></span>
-    <span class="group">
-      <span class="tag" data-tip="收发统计：记录本次连接累计收发的字节数">统计</span>
-      <span id="counters" data-tip="收发字节统计&#10;RX —— 累计接收的字节数&#10;TX —— 累计发送的字节数&#10;打开串口时自动归零，也可点右侧「清零」手动重置&#10;该值按字节计，不是按字符：一个汉字 UTF-8 占 3 字节">RX:0  TX:0</span>
+    <span class="group grow">
+      <input type="text" id="filter" placeholder="过滤接收内容…" data-tip="输入关键字即时过滤接收区，命中的片段会标红；不区分大小写，按 Esc 清空。过滤只影响显示，已缓存的内容不会丢失">
     </span>
-    <button id="resetCounters" data-tip="把 RX / TX 计数重置为 0">清零</button>
     <span class="action-group">
       <button id="clear" data-tip="清空接收区显示与已缓存的日志内容">清空</button>
-      <button id="save" data-tip="把当前接收区内容另存为 txt 或 log 文件">保存日志</button>
+      <button id="save" data-tip="把当前接收区内容另存为 txt 或 log 文件">保存</button>
     </span>
   </div>
 
@@ -298,13 +305,11 @@ export function buildWebviewHtml(): string {
   <div class="bar">
     <textarea id="input" rows="1" placeholder="输入要发送到串口的内容，回车发送；Shift+回车换行" data-tip="按回车发送，Shift+回车插入换行而不发送"></textarea>
     <button id="send" class="primary" data-tip="把输入框内容发送到串口">发送</button>
-    <span class="group"><span class="tag">发送</span>
-      <button id="sendMode" class="toggle plain" data-mode="text" data-tip="点击在「ASCII 文本」与「十六进制」之间切换发送内容的解析方式&#10;ASCII 文本 —— 按当前编码转为字节&#10;十六进制 —— 每两个字符解析为一个字节，如 E6 B5 8B，字符个数必须为偶数">ASCII 文本</button>
-    </span>
+    <button id="sendMode" class="toggle plain" data-mode="text" data-tip="点击在「ASCII 文本」与「十六进制」之间切换发送内容的解析方式&#10;ASCII 文本 —— 按当前编码转为字节&#10;十六进制 —— 每两个字符解析为一个字节，如 E6 B5 8B，字符个数必须为偶数">ASCII 文本</button>
     <button id="escape" class="toggle active" data-tip="启用转义符解析：\\r 回车、\\n 换行、\\t 制表、\\xNN 原始字节，例如 AT\\r\\n&#10;需发送字面反斜杠时写 \\\\ 或关闭该按钮">解析转义</button>
     <button id="loop" class="toggle" data-tip="循环发送：开启后按右侧周期重复发送输入框内容，再次点击即停止">循环发送</button>
     <input type="number" id="cycle" min="100" step="100" value="1000" data-tip="循环发送的间隔，单位毫秒，最小 100">
-    <span style="opacity:.7">ms</span>
+    <span class="unit">ms</span>
   </div>
 
 <script nonce="${nonce}">
@@ -324,8 +329,7 @@ export function buildWebviewHtml(): string {
   var encEl = document.getElementById('encoding');
   var toggleEl = document.getElementById('toggle');
   var statusEl = document.getElementById('status');
-  var countersEl = document.getElementById('counters');
-  var resetEl = document.getElementById('resetCounters');
+  var filterEl = document.getElementById('filter');
   var outputEl = document.getElementById('output');
   var inputEl = document.getElementById('input');
   var sendModeEl = document.getElementById('sendMode');
@@ -343,7 +347,6 @@ export function buildWebviewHtml(): string {
   var sendEl = document.getElementById('send');
   var clearEl = document.getElementById('clear');
   var saveEl = document.getElementById('save');
-  var refreshEl = document.getElementById('refresh');
 
   var ENDING_MAP = { none: '', lf: '\\n', cr: '\\r', crlf: '\\r\\n' };
 
@@ -399,9 +402,6 @@ export function buildWebviewHtml(): string {
     statusEl.className = cls || '';
   }
 
-  function setCounters(rx, tx) {
-    countersEl.textContent = 'RX:' + rx + '  TX:' + tx;
-  }
 
   /* 切换按钮的文案与高亮，返回切换后的模式 */
   function toggleMode(el, current) {
@@ -416,25 +416,72 @@ export function buildWebviewHtml(): string {
     return next;
   }
 
-  /* 把一条记录渲染成当前模式下的显示文本 */
-  function lineText(rec) {
-    if (rec.plain) { return rec.text; }
+  /* 一行拆成两段：时间戳前缀（不参与过滤高亮）与正文 */
+  function lineParts(rec) {
     var head = fmtStamp(rec.ts, rec.dir) + (rec.dir === 'tx' ? '\\u2192 ' : '\\u2190 ');
     // 没有十六进制数据时（如发送失败）回退显示原始文本
     var body = viewMode === 'hex' && rec.hex ? rec.hex : rec.text;
     if (rec.failed) { body += ' （发送失败）'; }
-    return head + body;
+    return { head: head, body: body };
   }
 
-  /* 关闭「显示发送」时，发送记录仅保留不渲染 */
+  /* 纯文本形式，供保存日志使用 */
+  function lineText(rec) {
+    if (rec.plain) { return rec.text; }
+    var parts = lineParts(rec);
+    return parts.head + parts.body;
+  }
+
+  /* 过滤关键字只作用于显示，原始记录始终保留 */
+  var filterText = '';
+
+  function matchesFilter(rec) {
+    if (!filterText) { return true; }
+    var body = viewMode === 'hex' && rec.hex ? rec.hex : rec.text;
+    return !!body && body.toLowerCase().indexOf(filterText) !== -1;
+  }
+
+  /* 关闭「显示发送」时发送记录不渲染；有过滤词时只显示命中行 */
   function visible(rec) {
-    return !(rec.dir === 'tx' && !showTxOn);
+    if (rec.dir === 'tx' && !showTxOn) { return false; }
+    return matchesFilter(rec);
+  }
+
+  /* 按过滤词把文本切开，命中的片段包进 span.hit 标红 */
+  function appendHits(parent, text) {
+    if (!filterText || !text) {
+      parent.appendChild(document.createTextNode(text || ''));
+      return;
+    }
+    var lower = text.toLowerCase();
+    var from = 0;
+    for (;;) {
+      var at = lower.indexOf(filterText, from);
+      if (at < 0) { break; }
+      if (at > from) {
+        parent.appendChild(document.createTextNode(text.slice(from, at)));
+      }
+      var hit = document.createElement('span');
+      hit.className = 'hit';
+      hit.textContent = text.slice(at, at + filterText.length);
+      parent.appendChild(hit);
+      from = at + filterText.length;
+    }
+    if (from < text.length) {
+      parent.appendChild(document.createTextNode(text.slice(from)));
+    }
   }
 
   function makeNode(rec) {
     var div = document.createElement('div');
     div.className = 'line' + (rec.dir ? ' ' + rec.dir : '') + (rec.failed ? ' failed' : '');
-    div.textContent = lineText(rec);
+    if (rec.plain) {
+      appendHits(div, rec.text);
+      return div;
+    }
+    var parts = lineParts(rec);
+    div.appendChild(document.createTextNode(parts.head));
+    appendHits(div, parts.body);
     return div;
   }
 
@@ -506,12 +553,16 @@ export function buildWebviewHtml(): string {
     pushRecord({ plain: true, dir: 'err', text: text });
   }
 
-  /* 全量重绘，用于切换显示模式时立即作用于历史内容 */
+  /* 全量重绘：从最新一条往前找，最多渲染 MAX_DOM_LINES 行，
+     这样开了过滤也能命中较早的记录，而不是只看最近 2000 条 */
   function rebuild() {
-    var start = Math.max(0, records.length - MAX_DOM_LINES);
+    var picked = [];
+    for (var i = records.length - 1; i >= 0 && picked.length < MAX_DOM_LINES; i--) {
+      if (visible(records[i])) { picked.push(records[i]); }
+    }
     var frag = document.createDocumentFragment();
-    for (var i = start; i < records.length; i++) {
-      if (visible(records[i])) { frag.appendChild(makeNode(records[i])); }
+    for (var j = picked.length - 1; j >= 0; j--) {
+      frag.appendChild(makeNode(picked[j]));
     }
     outputEl.textContent = '';
     queue.length = 0;
@@ -640,8 +691,19 @@ export function buildWebviewHtml(): string {
       ending: ending,
       escape: escapeOn
     });
-    if (!keepInput) { inputEl.value = ''; }
+    if (!keepInput) {
+      inputEl.value = '';
+      autoGrow();
+    }
   }
+
+  /* 输入框随内容增高：空内容回落到单行，最多约 4 行；面板隐藏时 scrollHeight 可能为 0，钳住下限 */
+  function autoGrow() {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(96, Math.max(24, inputEl.scrollHeight)) + 'px';
+  }
+
+  inputEl.addEventListener('input', autoGrow);
 
   function updateLoop() {
     if (loopTimer) {
@@ -714,16 +776,38 @@ export function buildWebviewHtml(): string {
     vscode.postMessage({ type: 'open', options: currentOptions() });
   });
 
-  refreshEl.addEventListener('click', function () {
-    vscode.postMessage({ type: 'refresh' });
-  });
-
   encEl.addEventListener('change', function () {
     vscode.postMessage({ type: 'encoding', encoding: encEl.value });
   });
 
-  resetEl.addEventListener('click', function () {
-    vscode.postMessage({ type: 'resetCounters' });
+  var filterTimer = null;
+
+  /* 过滤词落地：同步状态、空态提示并重绘 */
+  function commitFilter() {
+    filterText = filterEl.value.trim().toLowerCase();
+    document.body.classList.toggle('filtering', !!filterText);
+    rebuild();
+  }
+
+  /* 输入时延迟 80ms 再重绘，避免每敲一个字就把五万条记录扫一遍 */
+  function applyFilter() {
+    if (filterTimer) { clearTimeout(filterTimer); }
+    filterTimer = setTimeout(function () {
+      filterTimer = null;
+      commitFilter();
+    }, 80);
+  }
+
+  filterEl.addEventListener('input', applyFilter);
+
+  // Esc 快速清空过滤词，立即生效
+  filterEl.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      filterEl.value = '';
+      if (filterTimer) { clearTimeout(filterTimer); filterTimer = null; }
+      commitFilter();
+      e.stopPropagation();
+    }
   });
 
   sendEl.addEventListener('click', function () { send(false); });
@@ -876,11 +960,7 @@ export function buildWebviewHtml(): string {
       }
     } else if (msg.type === 'state') {
       applyState(msg);
-      setCounters(msg.rx, msg.tx);
-    } else if (msg.type === 'counters') {
-      setCounters(msg.rx, msg.tx);
     } else if (msg.type === 'data') {
-      setCounters(msg.rx, msg.tx);
       pushRecord({ ts: msg.ts, dir: 'rx', text: msg.text, hex: msg.hex });
     } else if (msg.type === 'tx') {
       pushRecord({ ts: msg.ts, dir: 'tx', text: msg.text, hex: msg.hex, failed: msg.ok === false });
@@ -952,7 +1032,8 @@ export function buildWebviewHtml(): string {
   document.addEventListener('mousedown', hideTip);
   window.addEventListener('scroll', hideTip, true);
 
-  vscode.postMessage({ type: 'refresh' });
+  // 页面就绪：宿主收到后会回推端口列表与真实连接状态
+  vscode.postMessage({ type: 'init' });
 })();
 </script>
 </body>

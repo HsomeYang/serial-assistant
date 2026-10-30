@@ -4,7 +4,7 @@
 import { SerialPort } from "serialport";
 import { LinkBase } from "./linkBase";
 
-export type { CloseHandler, Counters, DataHandler } from "./linkBase";
+export type { CloseHandler, DataHandler } from "./linkBase";
 
 export interface PortInfo {
   path: string;
@@ -69,10 +69,7 @@ export class SerialManager extends LinkBase {
     });
   }
 
-  /**
-   * @param resetCounters 自动重连时传 false，保留累计收发计数
-   */
-  public open(options: OpenOptions, resetCounters = true): Promise<void> {
+  public open(options: OpenOptions): Promise<void> {
     if (this.isOpen) {
       return Promise.reject(new Error("串口已打开，请先关闭"));
     }
@@ -82,9 +79,6 @@ export class SerialManager extends LinkBase {
     this.port = undefined;
     this.closing = false;
 
-    if (resetCounters) {
-      this.resetCounters();
-    }
     this.setEncoding(options.encoding);
 
     const seq = ++this.openSeq;
@@ -210,7 +204,6 @@ export class SerialManager extends LinkBase {
           reject(error);
           return;
         }
-        this.addTxBytes(data.length);
         resolve();
       });
     });

@@ -46,7 +46,6 @@ export class TcpManager extends LinkBase {
     }
 
     this.setEncoding(encoding);
-    this.resetCounters();
     this.target = host + ":" + port;
     this.closing = false;
 
@@ -174,7 +173,6 @@ export class TcpManager extends LinkBase {
           reject(error);
           return;
         }
-        this.addTxBytes(data.length);
         resolve();
       });
     });

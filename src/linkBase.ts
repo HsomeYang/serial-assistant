@@ -3,11 +3,6 @@
 
 import { TextDecoder } from "util";
 
-export interface Counters {
-  rx: number;
-  tx: number;
-}
-
 export type DataHandler = (text: string, hex: string) => void;
 export type CloseHandler = (reason?: string) => void;
 
@@ -22,8 +17,6 @@ export type CloseHandler = (reason?: string) => void;
 export abstract class LinkBase {
   private decoder = new TextDecoder("utf-8");
   private encoding = "utf-8";
-  private rxBytes = 0;
-  private txBytes = 0;
 
   private readonly dataHandlers: DataHandler[] = [];
   private readonly closeHandlers: CloseHandler[] = [];
@@ -45,20 +38,6 @@ export abstract class LinkBase {
     return this.encoding;
   }
 
-  public get counters(): Counters {
-    return { rx: this.rxBytes, tx: this.txBytes };
-  }
-
-  public resetCounters(): void {
-    this.rxBytes = 0;
-    this.txBytes = 0;
-  }
-
-  /** 子类发送成功后累加 TX 计数 */
-  protected addTxBytes(count: number): void {
-    this.txBytes += count;
-  }
-
   public setEncoding(encoding: string): void {
     try {
       this.decoder = new TextDecoder(encoding);
@@ -75,8 +54,6 @@ export abstract class LinkBase {
 
   /** 解码一个数据分片：text 供文本视图，hex 供十六进制视图 */
   protected handleChunk(chunk: Buffer): void {
-    this.rxBytes += chunk.length;
-
     const text = this.decoder.decode(chunk, { stream: true });
     const pairs = chunk.toString("hex").match(/../g);
     const hex = pairs ? pairs.join(" ").toUpperCase() : "";

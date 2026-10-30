@@ -24,14 +24,13 @@ interface OpenRequest {
 }
 
 type IncomingMessage =
-  | { type: "refresh" }
+  | { type: "init" }
   | { type: "open"; options: OpenRequest }
   | { type: "close" }
   | { type: "send"; data: string; hex: boolean; ending: string; escape: boolean }
   | { type: "encoding"; encoding: string }
   | { type: "signals"; dtr: boolean; rts: boolean }
   | { type: "reconnect"; enabled: boolean }
-  | { type: "resetCounters" }
   | { type: "save"; content: string };
 
 /**
@@ -67,8 +66,7 @@ export class SerialMonitorView implements vscode.WebviewViewProvider, vscode.Dis
   constructor() {
     const bind = (link: SerialManager | TcpManager): void => {
       link.onData((text, hex) => {
-        const counters = link.counters;
-        void this.post({ type: "data", text, hex, ts: Date.now(), rx: counters.rx, tx: counters.tx });
+        void this.post({ type: "data", text, hex, ts: Date.now() });
       });
       link.onClosed((reason) => {
         void this.post({ type: "closed", reason });
@@ -173,10 +171,10 @@ export class SerialMonitorView implements vscode.WebviewViewProvider, vscode.Dis
 
   private handleMessage(message: IncomingMessage): void {
     switch (message.type) {
-      case "refresh":
+      case "init":
+        // 页面加载完成（含面板关闭后重建）：首次推送端口列表与真实连接状态。
+        // resolveWebviewView 里推的那次早于页面加载，会被丢弃
         void this.syncPorts(true);
-        // 界面加载完成（含面板关闭后重建）时回推真实状态：
-        // resolveWebviewView 里推的那次早于页面加载，可能被丢弃
         void this.postState();
         break;
       case "open":
@@ -202,10 +200,6 @@ export class SerialMonitorView implements vscode.WebviewViewProvider, vscode.Dis
         if (!message.enabled) {
           this.stopReconnect();
         }
-        break;
-      case "resetCounters":
-        this.link.resetCounters();
-        void this.postCounters();
         break;
       case "save":
         void this.saveLog(message.content);
@@ -342,8 +336,7 @@ export class SerialMonitorView implements vscode.WebviewViewProvider, vscode.Dis
 
     this.opening = true;
     try {
-      // 重连不算重新开始，保留累计收发计数
-      await this.serial.open(options, false);
+      await this.serial.open(options);
       this.stopReconnect();
       await this.postState();
       await this.notify("已重连 " + options.path);
@@ -387,7 +380,6 @@ export class SerialMonitorView implements vscode.WebviewViewProvider, vscode.Dis
         ts: Date.now(),
         ok: true,
       });
-      await this.postCounters();
     } catch (error) {
       // 发送失败同样回显，便于确认「尝试发送了什么」，界面会标记失败
       await this.post({
@@ -513,13 +505,10 @@ export class SerialMonitorView implements vscode.WebviewViewProvider, vscode.Dis
 
   private async postState(): Promise<void> {
     const link = this.link;
-    const counters = link.counters;
     await this.post({
       type: "state",
       open: link.isOpen,
       path: link.openedPath,
-      rx: counters.rx,
-      tx: counters.tx,
       mode: this.mode,
       // 面板重建后据此回填界面，避免显示状态与真实连接不一致
       encoding: link.currentEncoding,
@@ -527,11 +516,6 @@ export class SerialMonitorView implements vscode.WebviewViewProvider, vscode.Dis
       rts: this.signals.rts,
       reconnect: this.reconnectEnabled,
     });
-  }
-
-  private async postCounters(): Promise<void> {
-    const counters = this.link.counters;
-    await this.post({ type: "counters", rx: counters.rx, tx: counters.tx });
   }
 
   private async notify(text: string): Promise<void> {

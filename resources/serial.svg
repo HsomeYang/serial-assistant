@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
-  <!-- TX：向外的发送箭头 -->
-  <path d="M2.6 3.9h7V2.7L13.6 5l-4 2.3V6.1h-7z" />
-  <!-- RX：向内的接收箭头 -->
-  <path d="M13.4 9.9h-7V8.7L2.4 11l4 2.3v-1.2h7z" />
-</svg>

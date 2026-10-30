@@ -150,7 +150,7 @@ export class SerialMonitorView implements vscode.WebviewViewProvider, vscode.Dis
         return;
       }
       this.lastPortsKey = key;
-      await this.post({ type: "ports", ports, opened: this.serial.openedPath });
+      await this.post({ type: "ports", ports });
     } catch (error) {
       if (force) {
         await this.notify("枚举串口失败：" + this.describe(error));
@@ -222,6 +222,17 @@ export class SerialMonitorView implements vscode.WebviewViewProvider, vscode.Dis
     try {
       this.stopReconnect();
       this.reconnectOptions = undefined;
+
+      // 另一条链路还开着时不允许切换，避免串口与 TCP 同时存在两条数据流
+      const otherBusy =
+        request.mode === "tcp" ? this.serial.isOpen : this.tcp.busy;
+      if (otherBusy) {
+        await this.notify(
+          request.mode === "tcp" ? "请先断开串口，再切换到 TCP" : "请先断开 TCP，再切换到串口"
+        );
+        await this.postState();
+        return;
+      }
 
       if (request.mode === "tcp") {
         try {

@@ -12,3 +12,4 @@ tsconfig.json
 **/*.vsix
 **/*.map
 dist/api.js
+resources/icon *.png

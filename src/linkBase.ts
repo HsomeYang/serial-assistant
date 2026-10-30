@@ -7,9 +7,9 @@ export type DataHandler = (text: string, hex: string) => void;
 export type CloseHandler = (reason?: string) => void;
 
 /**
- * Shared part of the serial and TCP links: incremental decoding, byte counters
- * and event dispatch. Subclasses only handle connect/disconnect and call
- * handleChunk() when data arrives.
+ * Shared part of the serial and TCP links: incremental decoding and event
+ * dispatch. Subclasses only handle connect/disconnect and call handleChunk()
+ * when data arrives.
  *
  * Decoding is incremental (stream: true) so multi-byte characters split across
  * chunks are restored correctly instead of showing half a glyph.

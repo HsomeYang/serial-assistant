@@ -1,5 +1,11 @@
 # 串口助手
 
+[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/HsomeYang.serial-assistant?style=flat-square&label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=HsomeYang.serial-assistant)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/HsomeYang.serial-assistant?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=HsomeYang.serial-assistant)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/HsomeYang.serial-assistant?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=HsomeYang.serial-assistant)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![VS Code](https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.75-007ACC?style=flat-square)](package.json)
+
 在 VS Code 底部面板里调试串口的工具。支持串口直连与 TCP 网络连接，中文不乱码，HEX 收发、时间戳、日志保存一应俱全。
 
 相比独立的串口助手软件，它不占额外窗口——改完代码按 `Ctrl+J` 就能看设备输出。
@@ -37,11 +43,23 @@
 
 | 环境 | 方式 |
 |---|---|
-| VS Code | `code --install-extension serial-assistant-0.1.0.vsix` |
+| VS Code 商店 | 扩展视图搜索「串口助手」，或直接打开 [商店页面](https://marketplace.visualstudio.com/items?itemName=HsomeYang.serial-assistant) |
+| VSIX 离线安装 | `code --install-extension serial-assistant-0.1.0.vsix` |
 | TRAE / CodeBuddy | 扩展视图 → 右上角 `...` → 「从 VSIX 安装...」 |
 | 其他 VS Code 衍生 IDE | 同上 |
 
 安装后重载窗口（`Ctrl+Shift+P` → `Developer: Reload Window`）。
+
+## 扩展信息
+
+| 项 | 值 |
+|---|---|
+| 扩展 ID | `HsomeYang.serial-assistant` |
+| 当前版本 | 0.1.0 |
+| 运行环境 | VS Code 1.75 及以上 |
+| 许可 | MIT（派生自 Microsoft vscode-serial-monitor） |
+| 源码仓库 | [HsomeYang/serial-assistant](https://github.com/HsomeYang/serial-assistant) |
+| 问题反馈 | [Issues](https://github.com/HsomeYang/serial-assistant/issues) |
 
 ## 快速开始
 
@@ -114,9 +132,34 @@ npm install
 npm run build      # lint + 编译
 npm run compile    # 仅编译，供 F5 调试
 npm run package    # 生成 vsix
+npm run publish    # 发布到商店（需 VSCE_PAT 环境变量）
 ```
 
 在 VS Code / TRAE / CodeBuddy 中打开本目录，按 `F5` 启动扩展宿主调试（配置见 `.vscode/launch.json`）。
+
+### 仓库结构
+
+```
+串口助手/
+├─ src/
+│  ├─ extension.ts      激活入口：视图、命令、状态栏
+│  ├─ monitorPanel.ts   底部面板 Webview（界面与消息处理）
+│  ├─ serialManager.ts  串口收发与增量解码
+│  └─ tcpManager.ts     TCP 客户端连接
+├─ api.ts               对外 API 契约（尚未导出 getApi）
+├─ resources/           扩展图标
+├─ docs/                开发备忘
+├─ dist/                编译产物（打包时由 tsc 生成）
+├─ package.json         扩展清单
+└─ .github/             Issue / PR 模板与 CI 工作流
+```
+
+### 发布流程
+
+1. 更新 `package.json` 的 `version` 与 `CHANGELOG.md`
+2. 提交并打标签：`git tag v0.1.0 && git push --tags`
+3. 标签触发 [publish 工作流](.github/workflows/publish.yml)：打包 vsix、创建 GitHub Release，并在配置了 `VSCE_PAT` 密钥时自动发布到商店
+4. 手动发布：`npx vsce publish`
 
 ## 已知限制
 
@@ -157,12 +200,12 @@ CH340 / CP2102 等芯片本身跑不了这么高，降到 921600 或 460800 试�
 
 ## 反馈
 
-问题请提交至 [Issues](https://github.com/HsomeYang/serial-assistant/issues)。
+问题请提交至 [Issues](https://github.com/HsomeYang/serial-assistant/issues)。安全漏洞请勿公开提交，改走 [安全公告](https://github.com/HsomeYang/serial-assistant/security/advisories/new)，详见 [SECURITY.md](SECURITY.md)。
 
 ## 许可与来源
 
 本项目派生自 Microsoft 的 [vscode-serial-monitor](https://github.com/microsoft/vscode-serial-monitor)（MIT），
-保留原始版权声明与 MIT 许可条款。
+保留原始版权声明与 MIT 许可条款，见 [LICENSE](LICENSE)。
 
 ## 商标
 

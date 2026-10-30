@@ -7,9 +7,11 @@ tsconfig.json
 .eslintrc.js
 .vscodeignore
 .gitignore
+.gitattributes
 SECURITY.md
 SUPPORT.md
 CODE_OF_CONDUCT.md
 **/package-lock.json
-*.vsix
+**/*.vsix
+**/*.map
 dist/api.js

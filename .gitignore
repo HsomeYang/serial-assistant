@@ -3,8 +3,15 @@ node_modules/
 
 # Build output
 dist/
+out/
 *.build.log
 *.build.error.log
+*.log
 
 # Package output
 *.vsix
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.eslintcache

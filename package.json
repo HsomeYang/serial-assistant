@@ -6,16 +6,22 @@
   "version": "0.1.0",
   "publisher": "HsomeYang",
   "license": "MIT",
+  "galleryBanner": {
+    "color": "#1B2B34",
+    "theme": "dark"
+  },
   "keywords": [
     "vscode",
     "serial",
-    "api",
+    "serial monitor",
     "串口",
     "串口助手",
     "串口监视器",
     "serial-assistant",
-    "monitor",
-    "serial monitor"
+    "uart",
+    "tcp",
+    "gb18030",
+    "hex"
   ],
   "categories": [
     "Other"
@@ -25,10 +31,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/HsomeYang/serial-assistant"
+    "url": "https://github.com/HsomeYang/serial-assistant.git"
   },
+  "homepage": "https://github.com/HsomeYang/serial-assistant#readme",
   "author": {
-    "name": "Microsoft Corporation"
+    "name": "HsomeYang",
+    "url": "https://github.com/HsomeYang"
   },
   "main": "dist/src/extension.js",
   "activationEvents": [
@@ -68,11 +76,11 @@
     "clean": "rimraf ./dist",
     "lint": "eslint . --ext ts --max-warnings 0",
     "package": "vsce package",
-    "release": "vsce publish"
+    "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/node": "^16.11.7",
-    "@types/vscode": "^1.55.0",
+    "@types/vscode": "~1.75.0",
     "@typescript-eslint/parser": "^5.48.0",
     "@vscode/vsce": "^2.32.0",
     "eslint": "^8.25.0",
@@ -87,6 +95,10 @@
     "untrustedWorkspaces": {
       "supported": false,
       "description": "需要访问本地串口设备"
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "需要访问本地串口设备与 TCP 网络"
     }
   },
   "dependencies": {
